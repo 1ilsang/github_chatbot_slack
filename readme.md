@@ -8,4 +8,8 @@ Slack Chatbot
 <img src="img/music.png" width="50%" />
 
 #### 2. help
-<img src="img/help.png" width="60%" />
+<img src="img/help.png" width="65%" />
+
+#### 3. 아이디, 0
+<img src="img/profile.png" width="60%" />
+
