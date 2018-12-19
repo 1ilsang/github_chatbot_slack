@@ -40,7 +40,6 @@ def _crawl_naver_keywords(text):
     
     #여기에 함수를 구현해봅시다.
     url = "https://music.bugs.co.kr/"
-    
     soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
     
     keywords = []
@@ -60,14 +59,53 @@ def _crawl_naver_keywords(text):
     # 한글 지원을 위해 앞에 unicode u를 붙혀준다.
     return u'\n'.join(keywords)
 
+# 인자로 받은 아이디의 정보를 출력한다.
+def _get_user_profile(userId):
+    # userId = userId.replace(',', '')
+    url = "https://github.com/" + userId
+
+    soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
+    
+    keywords = []
+    name = soup.find('span', class_='p-name vcard-fullname d-block overflow-hidden').get_text()
+    bio = soup.find('div', class_='d-inline-block mb-3 js-user-profile-bio-contents')
+    print(bio)
+    company = soup.find('span', class_='p-org').get_text()
+    location = soup.find('span', class_='p-label').get_text()
+    email = str(soup.find('a', class_='u-email'))
+    url = soup.find('a', class_='u-url').get_text()
+    # repositories = soup.find('span', class_='Counter')
+    # stars = soup.find('', class_='')
+    # followers = soup.find('', class_='')
+    # following = soup.find('', class_='')
+    # organizations = soup.find('', class_='')
+    
+    keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+    keywords.append("\n")
+    keywords.append("ID : " + userId)
+    keywords.append("Name : " + name)
+    # keywords.append("Bio : " + bio)
+    keywords.append("Company : " + company)
+    keywords.append("Location : " + location)
+    keywords.append("Email : " + email)
+    keywords.append("Link URL : " + url)
+    keywords.append("Repositories : " + ", Stars : " + ", Followers : " + ", Following : ")
+    keywords.append("Organizations : ")
+    keywords.append("\n")
+    keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+    
+    return u'\n'.join(keywords)
+    
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
 
     if event_type == "app_mention":
         channel = slack_event["event"]["channel"]
-        text = slack_event["event"]["text"]
+        text = slack_event["event"]["text"][13:].replace(',', '').split()
 
-        if text[13:] == 'music':
+        # textList = [cmd for cmd in text if]
+        # print(textList)
+        if text[0] == 'music':
             keywords = _crawl_naver_keywords(text)
             sc.api_call(
                 "chat.postMessage",
@@ -76,7 +114,7 @@ def _event_handler(event_type, slack_event):
             )
             return make_response("App mention message has been sent", 200,)
         
-        elif text[13:] == 'help':
+        elif text[0] == 'help':
             keywords = _help_desk()
             sc.api_call(
                 "chat.postMessage",
@@ -84,14 +122,23 @@ def _event_handler(event_type, slack_event):
                 text=keywords
             )
             return make_response("App mention message has been sent", 200,)
-        
+            
+        elif text[1] == '0':
+            keywords = _get_user_profile(text[0])
+            sc.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=keywords
+            )
+            return make_response("App mention message has been sent", 200,)
+            
         else:
             sc.api_call(
                 "chat.postMessage",
                 channel=channel,
                 text=ERR_TEXT
             )
-            return make_response("App mention message has been sent", 200,)
+            return make_response("App mention message has been sent", 401,)
 
     # ============= Event Type Not Found! ============= #
     # If the event_type does not have a handler
