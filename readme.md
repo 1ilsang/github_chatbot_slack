@@ -8,4 +8,4 @@ Slack Chatbot
 <img src="img/music.png" width="40%" />
 
 #### 2. help
-<img src="img/help.png" width="40%" />
+<img src="img/help.png" width="50%" />
