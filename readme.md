@@ -5,7 +5,7 @@ Slack Chatbot
 
 ### 명령어 목록
 #### 1. music
-<img src="img/music.png" width="40%" />
+<img src="img/music.png" width="50%" />
 
 #### 2. help
-<img src="img/help.png" width="50%" />
+<img src="img/help.png" width="60%" />
