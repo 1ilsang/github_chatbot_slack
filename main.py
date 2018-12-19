@@ -12,6 +12,28 @@ import secretKey
 app = Flask(__name__)
 
 sc = SlackClient(secretKey.slack_token)
+ERR_TEXT = "명령어가 잘못됐거나 없는 유저입니다. 도움말은 help 를 입력해 주세요."
+
+# Help desk
+def _help_desk():
+    keywords = []
+    keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+    keywords.append("\n")
+    keywords.append("HELP:: 명령어 리스트.")
+    keywords.append("\n")
+    keywords.append("\t1. music : 벅스에서 인기순위 탑 10을 출력합니다.")
+    keywords.append("\n")
+    keywords.append("\t2. {아이디}, {행동1}, {행동2}, ... : 각 { } 안에 명령어를 넣어주세요.")
+    keywords.append("\t\t\t{아이디}, 0 : 해당 아이디의 정보를 출력합니다.")
+    keywords.append("\t\t\t{아이디}, 1 : 해당 아이디의 팔로워들의 활동정보 10개를 보여줍니다.")
+    keywords.append("\t\t\t{아이디}, 2, 1 : 해당 아이디의 마지막 푸쉬 날짜, 횟수를 출력합니다.")
+    keywords.append("\t\t\t{아이디}, 2, 2 : 1년간 해당 아이디가 가장 많이 푸쉬한 날을 출력합니다.")
+    keywords.append("\t\t\t{아이디}, yyyy/mm/dd : yyyy/mm/dd 일에 푸쉬한 횟수를 출력합니다.")
+    keywords.append('\n')
+    keywords.append('\n')
+    keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+    
+    return u'\n'.join(keywords)
 
 # 크롤링 함수 구현하기
 def _crawl_naver_keywords(text):
@@ -40,7 +62,6 @@ def _crawl_naver_keywords(text):
 
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
-    print(slack_event["event"])
 
     if event_type == "app_mention":
         channel = slack_event["event"]["channel"]
@@ -53,7 +74,23 @@ def _event_handler(event_type, slack_event):
                 channel=channel,
                 text=keywords
             )
-
+            return make_response("App mention message has been sent", 200,)
+        
+        elif text[13:] == 'help':
+            keywords = _help_desk()
+            sc.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=keywords
+            )
+            return make_response("App mention message has been sent", 200,)
+        
+        else:
+            sc.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=ERR_TEXT
+            )
             return make_response("App mention message has been sent", 200,)
 
     # ============= Event Type Not Found! ============= #
