@@ -26,9 +26,9 @@ def _help_desk():
     keywords.append("\n")
     keywords.append("\t2. {아이디}, {행동1}, {행동2}, ... : 각 { } 안에 명령어를 넣어주세요.")
     keywords.append("\t\t\t{아이디}, 0 : 해당 아이디의 정보를 출력합니다.")
-    keywords.append("\t\t\t{아이디}, 1 : 해당 아이디의 팔로워들의 활동정보 10개를 보여줍니다.")
-    keywords.append("\t\t\t{아이디}, 2, 1 : 해당 아이디의 마지막 푸쉬 날짜, 횟수를 출력합니다.")
-    keywords.append("\t\t\t{아이디}, 2, 2 : 1년간 해당 아이디가 가장 많이 푸쉬한 날을 출력합니다.")
+    keywords.append("\t\t\t{아이디}, 1 : 해당 아이디의 반 년간 푸쉬량을 그래프로 보여줍니다.")
+    keywords.append("\t\t\t{아이디}, 2 : 해당 아이디의 마지막 푸쉬 날짜, 횟수를 출력합니다.")
+    keywords.append("\t\t\t{아이디}, 3 : 1년간 해당 아이디가 가장 많이 푸쉬한 날을 출력합니다.")
     keywords.append("\t\t\t{아이디}, yyyy/mm/dd : yyyy/mm/dd 일에 푸쉬한 횟수를 출력합니다.")
     keywords.append('\n')
     keywords.append('\n')
@@ -64,43 +64,105 @@ def _crawl_naver_keywords(text):
 
 # 인자로 받은 아이디의 정보를 출력한다.
 def _get_user_profile(userId):
-    # userId = userId.replace(',', '')
     url = "https://github.com/" + userId
 
     soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
 
     keywords = []
-    name = soup.find('span', class_='p-name vcard-fullname d-block overflow-hidden').get_text()
-    bio = soup.find('div', class_='p-note user-profile-bio mb-3').get_text()
-    company = soup.find('span', class_='p-org').get_text()
-    location = soup.find('span', class_='p-label').get_text()
-    email = soup.find('li', {'itemprop':'email'}).find('a').get_text()
-    url = soup.find('li', {'itemprop':'url'}).find('a').get_text()
+
+    data = {}
+    data['name'] = soup.find('span', class_='p-name vcard-fullname d-block overflow-hidden')
+    data['bio'] = soup.find('div', class_='p-note user-profile-bio mb-3').find('div')
+    data['company'] = soup.find('span', class_='p-org')
+    data['location'] = soup.find('span', class_='p-label')
+    data['email'] = soup.find('li', {'itemprop': 'email'})
+    data['url'] = soup.find('li', {'itemprop': 'url'})
+
+    for i, j in data.items():
+        try:
+            if i == 'email' or i == 'url':
+                data[i] = str(j.find('a').get_text())
+            else:
+                data[i] = str(j.get_text())
+        except:
+            data[i] = 'None'
 
     rsffList = soup.find_all('a', class_='UnderlineNav-item')
     del rsffList[0]
-    rsff= []
+    rsff = []
     for i in rsffList:
-        rsff.append(i.find('span').get_text().strip())
+        try:
+            ret = rsff.append(i.find('span').get_text().strip())
+        except:
+            break
 
-    # organizations = soup.find('', class_='')
+    organizations = soup.find_all('a', class_='avatar-group-item')
+    orgList = []
+    for i in organizations:
+        try:
+            orgList.append(i.find('img')['alt'])
+        except:
+            break;
 
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
     keywords.append("\n")
     keywords.append("\tID : " + userId)
-    keywords.append("\tName : " + name)
-    keywords.append("\tBio : " + bio)
-    keywords.append("\tCompany : " + company)
-    keywords.append("\tLocation : " + location)
-    keywords.append("\tEmail : " + email)
-    keywords.append("\tLink URL : " + url)
-    keywords.append("\tRepositories : " + rsff[0] + ",   Stars : " + rsff[1] + ",   Followers : " + rsff[2] + ",   Following : " + rsff[3])
+    keywords.append("\tName : " + data['name'])
+    keywords.append("\tBio : " + data['bio'])
+    keywords.append("\n")
+    keywords.append("\tCompany : " + data['company'])
+    keywords.append("\tLocation : " + data['location'])
+    keywords.append("\tEmail : " + data['email'])
+    keywords.append("\tLink URL : " + data['url'])
+    keywords.append(
+        "\tRepositories : " + rsff[0] + ",   Stars : " + rsff[1] + ",   Followers : " + rsff[2] + ",   Following : " +
+        rsff[3])
+    keywords.append("\n")
     keywords.append("\tOrganizations : ")
+    tmp = []
+    for i in orgList:
+        tmp.append(i)
+    keywords.append("\t\t" + str(tmp))
     keywords.append("\n")
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
 
     return u'\n'.join(keywords)
 
+# 인자로 받은 아이디의 컨트리뷰션 그래프를 출력한다.
+def _get_contributions_graph(userId):
+    url = "https://github.com/" + userId
+
+    soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
+
+    print("_get_contributions_graph")
+
+    keywords = []
+    keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+    keywords.append("\n")
+
+    rgraph = []
+    cgraph = soup.find_all('rect', class_="day")
+
+    for i in range(0, 7):
+        del rgraph[:]
+        cnt = 0
+        while cnt < len(cgraph):
+            if cnt % 7 == i:
+                try:
+                    ret = cgraph[cnt + i]['data-count']
+                    if int(ret) > 10:
+                        ret = '9'
+                    rgraph.append(str(ret))
+                except:
+                    print(ret)
+                    # rgraph.append('0')
+                    break
+            cnt += 1
+        print(rgraph)
+        keywords.append(str(rgraph))
+        # keywords.append("\n")
+
+    return u'\n'.join(keywords)
 
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
@@ -119,6 +181,11 @@ def _event_handler(event_type, slack_event):
 
         elif text[1] == '0':
             keywords = _get_user_profile(text[0])
+            STATUS_CODE = 200
+
+        # 개발중
+        elif text[1] == '1':
+            keywords = _get_contributions_graph(text[0])
             STATUS_CODE = 200
 
         else:
