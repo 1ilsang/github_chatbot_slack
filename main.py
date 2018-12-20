@@ -73,7 +73,8 @@ def _get_user_profile(userId):
     company = soup.find('span', class_='p-org').get_text()
     location = soup.find('span', class_='p-label').get_text()
     email = str(soup.find('a', class_='u-email'))
-    url = soup.find('a', class_='u-url').get_text()
+    url = soup.find('a', class_='u-url')
+    print(url)
     # repositories = soup.find('span', class_='Counter')
     # stars = soup.find('', class_='')
     # followers = soup.find('', class_='')
@@ -88,7 +89,7 @@ def _get_user_profile(userId):
     keywords.append("Company : " + company)
     keywords.append("Location : " + location)
     keywords.append("Email : " + email)
-    keywords.append("Link URL : " + url)
+    # keywords.append("Link URL : " + url)
     keywords.append("Repositories : " + ", Stars : " + ", Followers : " + ", Following : ")
     keywords.append("Organizations : ")
     keywords.append("\n")
@@ -149,7 +150,7 @@ def _event_handler(event_type, slack_event):
 @app.route("/ss", methods=["GET", "POST"])
 def hears():
     slack_event = json.loads(request.data)
-
+    print(slack_event)
     if "challenge" in slack_event:
         return make_response(slack_event["challenge"], 200, {"content_type":
                                                              "application/json"
@@ -173,5 +174,5 @@ def index():
     return "<h1>Server is ready.</h1>"
 
 if __name__ == '__main__':
-    app.run('0.0.0.0', port=8080)
+    app.run('localhost', port=8080, debug=True)
 
