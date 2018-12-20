@@ -139,28 +139,25 @@ def _get_contributions_graph(userId):
     keywords = []
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
     keywords.append("\n")
+    keywords.append("\t" + str(userId) + " 님의 활동 그래프.")
+    keywords.append("\n")
 
-    rgraph = []
-    cgraph = soup.find_all('rect', class_="day")
+    cgraph = soup.find_all('rect', class_="day")[175:]
 
     for i in range(0, 7):
-        del rgraph[:]
-        cnt = 0
+        rgraph = []
+        cnt = i
         while cnt < len(cgraph):
-            if cnt % 7 == i:
-                try:
-                    ret = cgraph[cnt + i]['data-count']
-                    if int(ret) > 10:
-                        ret = '9'
-                    rgraph.append(str(ret))
-                except:
-                    print(ret)
-                    # rgraph.append('0')
-                    break
-            cnt += 1
-        print(rgraph)
-        keywords.append(str(rgraph))
-        # keywords.append("\n")
+            try:
+                ret = cgraph[cnt]['data-count']
+                if int(ret) > 9:
+                    ret = '9'
+                rgraph.append(str(ret))
+            except:
+                break
+            cnt += 7
+        keywords.append("\t" + str(rgraph))
+    keywords.append("\n")
 
     return u'\n'.join(keywords)
 
