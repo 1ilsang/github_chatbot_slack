@@ -12,7 +12,7 @@ import secretKey
 app = Flask(__name__)
 
 sc = SlackClient(secretKey.slack_token)
-ERR_TEXT = "명령어가 잘못됐거나 없는 유저입니다. 도움말은 help 를 입력해 주세요."
+ERR_TEXT = "명령어가 잘못됐거나 없는 유저입니다. 도움말은 *help* 를 입력해 주세요."
 
 
 # Help desk
@@ -22,14 +22,13 @@ def _help_desk():
     keywords.append("\n")
     keywords.append("HELP:: 명령어 리스트.")
     keywords.append("\n")
-    keywords.append("\t1. music : 벅스에서 인기순위 탑 10을 출력합니다.")
+    keywords.append("\t1. *music* : 벅스에서 인기순위 탑 10을 출력합니다.")
     keywords.append("\n")
-    keywords.append("\t2. {아이디}, {행동1}, {행동2}, ... : 각 { } 안에 명령어를 넣어주세요.")
+    keywords.append("\t2. *{아이디}*, *{행동1}* : 각 { } 안에 명령어를 넣어주세요.")
     keywords.append("\t\t\t{아이디}, 0 : 해당 아이디의 정보를 출력합니다.")
     keywords.append("\t\t\t{아이디}, 1 : 해당 아이디의 반 년간 푸쉬량을 그래프로 보여줍니다.")
-    keywords.append("\t\t\t{아이디}, 2 : 해당 아이디의 마지막 푸쉬 날짜, 횟수를 출력합니다.")
-    keywords.append("\t\t\t{아이디}, 3 : 1년간 해당 아이디가 가장 많이 푸쉬한 날을 출력합니다.")
-    keywords.append("\t\t\t{아이디}, yyyy/mm/dd : yyyy/mm/dd 일에 푸쉬한 횟수를 출력합니다.")
+    # keywords.append("\t\t\t{아이디}, 2 : 해당 아이디의 친구들?.")
+    keywords.append("\t\t\t{아이디}, yyyy-mm-dd : yyyy-mm-dd 일에 푸쉬한 횟수를 출력합니다.")
     keywords.append('\n')
     keywords.append('\n')
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
@@ -47,7 +46,7 @@ def _crawl_naver_keywords(text):
 
     artists = soup.find_all('p', class_='artist')
 
-    keywords.append("Bugs 실시간 음악 차트 Top 10")
+    keywords.append("*Bugs 실시간 음악 차트 Top 10*")
     keywords.append('\n')
     # for i, artist in enumerate(soup.find_all('p', class_='artist')):
     #     if i < 10:
@@ -115,8 +114,8 @@ def _get_user_profile(userId):
     keywords.append("\tEmail : " + data['email'])
     keywords.append("\tLink URL : " + data['url'])
     keywords.append(
-        "\tRepositories : " + rsff[0] + ",   Stars : " + rsff[1] + ",   Followers : " + rsff[2] + ",   Following : " +
-        rsff[3])
+        "\t*Repositories : " + rsff[0] + ",   Stars : " + rsff[1] + ",   Followers : " + rsff[2] + ",   Following : " +
+        rsff[3] + "*")
     keywords.append("\n")
     keywords.append("\tOrganizations : ")
     tmp = []
@@ -128,73 +127,125 @@ def _get_user_profile(userId):
 
     return u'\n'.join(keywords)
 
+
 # 인자로 받은 아이디의 컨트리뷰션 그래프를 출력한다.
 def _get_contributions_graph(userId):
     url = "https://github.com/" + userId
-
     soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
-
-    print("_get_contributions_graph")
 
     keywords = []
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
     keywords.append("\n")
-    keywords.append("\t" + str(userId) + " 님의 활동 그래프.")
+    keywords.append(str(userId) + " 님의 활동 그래프 (9 번이 넘는 커밋은 *9 로 표시* 되었습니다).")
     keywords.append("\n")
 
     cgraph = soup.find_all('rect', class_="day")[175:]
+
+    totalCnt = 0
+    maxCnt = 0
+    maxDD = ''
 
     for i in range(0, 7):
         rgraph = []
         cnt = i
         while cnt < len(cgraph):
             try:
-                ret = cgraph[cnt]['data-count']
-                if int(ret) > 9:
-                    ret = '9'
+                ret = int(cgraph[cnt]['data-count'])
+                if maxCnt < ret:
+                    maxCnt = ret
+                    maxDD = cgraph[cnt]['data-date']
+
+                totalCnt += ret
+
+                if ret > 9:
+                    ret = 9
+
                 rgraph.append(str(ret))
             except:
                 break
             cnt += 7
         keywords.append("\t" + str(rgraph))
+
+    keywords.append("\n")
+    keywords.append("\t반년간 토탈 푸쉬 횟수 : *" + str(totalCnt) + "*")
+    keywords.append("\t가장 많이한 푸쉬 횟수 : *" + str(maxCnt) + "*")
+    keywords.append("\t가장 많이 푸쉬한 날짜 : *" + str(maxDD) + "*")
+    keywords.append("\n")
+    keywords.append("\n")
+    keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+
+    return u'\n'.join(keywords)
+
+
+# yyyy/mm/dd 일에 해당하는 푸쉬 수를 출력
+def _get_dd_contribution(userId, dd):
+    url = "https://github.com/" + userId
+    soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
+    cgraph = soup.find_all('rect', class_="day")
+
+    ret = -1
+
+    for i in range(len(cgraph)):
+        if cgraph[i]['data-date'] == dd:
+            ret = cgraph[i]['data-count']
+            break
+
+    keywords = []
+    keywords.append("\n")
+    if ret == -1:
+        keywords.append(">\t\t날짜를 초과하셨습니다.")
+    else:
+        keywords.append(">\t\t" + str(userId) + " 님의 " + str(dd) + " 일 푸쉬량 : *" + str(ret) + "*")
     keywords.append("\n")
 
     return u'\n'.join(keywords)
+
 
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
     if event_type == "app_mention":
         channel = slack_event["event"]["channel"]
-        text = slack_event["event"]["text"][13:].replace(',', '').split()
+        try:
+            text = slack_event["event"]["text"][13:].replace(',', '').split()
+            compile_text = re.compile(r'\d\d\d\d-\d\d-\d\d')
 
-        keywords = ERR_TEXT
-        STATUS_CODE = 100
-        if text[0] == 'music':
-            keywords = _crawl_naver_keywords(text)
+            if len(text) > 1:
+                match_text = compile_text.findall(text[1])
 
-        elif text[0] == 'help':
-            keywords = _help_desk()
-            STATUS_CODE = 200
-
-        elif text[1] == '0':
-            keywords = _get_user_profile(text[0])
-            STATUS_CODE = 200
-
-        # 개발중
-        elif text[1] == '1':
-            keywords = _get_contributions_graph(text[0])
-            STATUS_CODE = 200
-
-        else:
             keywords = ERR_TEXT
-            STATUS_CODE = 400
+
+            STATUS_CODE = 100
+            if text[0] == 'music':
+                keywords = _crawl_naver_keywords(text)
+
+            elif text[0] == 'help':
+                keywords = _help_desk()
+
+            elif text[1] == '0':
+                keywords = _get_user_profile(text[0])
+
+            elif text[1] == '1':
+                keywords = _get_contributions_graph(text[0])
+
+            elif len(text) > 1 and match_text[0] is not None:
+                keywords = _get_dd_contribution(text[0], match_text[0])
+
+            else:
+                keywords = ERR_TEXT
+                STATUS_CODE = 400
+
+            if STATUS_CODE != 400:
+                STATUS_CODE = 200
+        except:
+            STATUS_CODE = 500
+            keywords = ERR_TEXT
 
         sc.api_call(
             "chat.postMessage",
             channel=channel,
             text=keywords
         )
-        # return make_response("App mention message has been sent", 200, )
+
     # ============= Event Type Not Found! ============= #
     # If the event_type does not have a handler
     message = "You have not added an event handler for the %s" % event_type
