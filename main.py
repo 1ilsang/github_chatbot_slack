@@ -14,6 +14,7 @@ app = Flask(__name__)
 sc = SlackClient(secretKey.slack_token)
 ERR_TEXT = "명령어가 잘못됐거나 없는 유저입니다. 도움말은 help 를 입력해 주세요."
 
+
 # Help desk
 def _help_desk():
     keywords = []
@@ -32,16 +33,16 @@ def _help_desk():
     keywords.append('\n')
     keywords.append('\n')
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
-    
+
     return u'\n'.join(keywords)
+
 
 # 크롤링 함수 구현하기
 def _crawl_naver_keywords(text):
-    
-    #여기에 함수를 구현해봅시다.
+    # 여기에 함수를 구현해봅시다.
     url = "https://music.bugs.co.kr/"
     soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
-    
+
     keywords = []
 
     artists = soup.find_all('p', class_='artist')
@@ -53,11 +54,13 @@ def _crawl_naver_keywords(text):
     #         artists.append(artist.get_text().split())
     for i, keyword in enumerate(soup.find_all("p", class_="title")):
         if i < 10:
-            row = "\t" + str(i + 1) + "위:  " + keyword.get_text().replace('\n', '') + " / " + str(artists[i].get_text().strip())
+            row = "\t" + str(i + 1) + "위:  " + keyword.get_text().replace('\n', '') + " / " + str(
+                artists[i].get_text().strip())
             keywords.append(row)
 
     # 한글 지원을 위해 앞에 unicode u를 붙혀준다.
     return u'\n'.join(keywords)
+
 
 # 인자로 받은 아이디의 정보를 출력한다.
 def _get_user_profile(userId):
@@ -65,101 +68,89 @@ def _get_user_profile(userId):
     url = "https://github.com/" + userId
 
     soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
-    
+
     keywords = []
     name = soup.find('span', class_='p-name vcard-fullname d-block overflow-hidden').get_text()
-    bio = soup.find('div', class_='d-inline-block mb-3 js-user-profile-bio-contents')
-    print(bio)
+    bio = soup.find('div', class_='p-note user-profile-bio mb-3').get_text()
     company = soup.find('span', class_='p-org').get_text()
     location = soup.find('span', class_='p-label').get_text()
-    email = str(soup.find('a', class_='u-email'))
-    url = soup.find('a', class_='u-url')
-    print(url)
-    # repositories = soup.find('span', class_='Counter')
-    # stars = soup.find('', class_='')
-    # followers = soup.find('', class_='')
-    # following = soup.find('', class_='')
+    email = soup.find('li', {'itemprop':'email'}).find('a').get_text()
+    url = soup.find('li', {'itemprop':'url'}).find('a').get_text()
+
+    rsffList = soup.find_all('a', class_='UnderlineNav-item')
+    del rsffList[0]
+    rsff= []
+    for i in rsffList:
+        rsff.append(i.find('span').get_text().strip())
+
     # organizations = soup.find('', class_='')
-    
+
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
     keywords.append("\n")
-    keywords.append("ID : " + userId)
-    keywords.append("Name : " + name)
-    # keywords.append("Bio : " + bio)
-    keywords.append("Company : " + company)
-    keywords.append("Location : " + location)
-    keywords.append("Email : " + email)
-    # keywords.append("Link URL : " + url)
-    keywords.append("Repositories : " + ", Stars : " + ", Followers : " + ", Following : ")
-    keywords.append("Organizations : ")
+    keywords.append("\tID : " + userId)
+    keywords.append("\tName : " + name)
+    keywords.append("\tBio : " + bio)
+    keywords.append("\tCompany : " + company)
+    keywords.append("\tLocation : " + location)
+    keywords.append("\tEmail : " + email)
+    keywords.append("\tLink URL : " + url)
+    keywords.append("\tRepositories : " + rsff[0] + ",   Stars : " + rsff[1] + ",   Followers : " + rsff[2] + ",   Following : " + rsff[3])
+    keywords.append("\tOrganizations : ")
     keywords.append("\n")
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
-    
+
     return u'\n'.join(keywords)
-    
+
+
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
-
     if event_type == "app_mention":
         channel = slack_event["event"]["channel"]
         text = slack_event["event"]["text"][13:].replace(',', '').split()
 
-        # textList = [cmd for cmd in text if]
-        # print(textList)
+        keywords = ERR_TEXT
+        STATUS_CODE = 100
         if text[0] == 'music':
             keywords = _crawl_naver_keywords(text)
-            sc.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=keywords
-            )
-            return make_response("App mention message has been sent", 200,)
-        
+
         elif text[0] == 'help':
             keywords = _help_desk()
-            sc.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=keywords
-            )
-            return make_response("App mention message has been sent", 200,)
-            
+            STATUS_CODE = 200
+
         elif text[1] == '0':
             keywords = _get_user_profile(text[0])
-            sc.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=keywords
-            )
-            return make_response("App mention message has been sent", 200,)
-            
-        else:
-            sc.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=ERR_TEXT
-            )
-            return make_response("App mention message has been sent", 401,)
+            STATUS_CODE = 200
 
+        else:
+            keywords = ERR_TEXT
+            STATUS_CODE = 400
+
+        sc.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=keywords
+        )
+        # return make_response("App mention message has been sent", 200, )
     # ============= Event Type Not Found! ============= #
     # If the event_type does not have a handler
     message = "You have not added an event handler for the %s" % event_type
     # Return a helpful error message
-    return make_response(message, 200, {"X-Slack-No-Retry": 1})
+    return make_response(message, STATUS_CODE, {"X-Slack-No-Retry": 1})
+
 
 @app.route("/ss", methods=["GET", "POST"])
 def hears():
     slack_event = json.loads(request.data)
-    print(slack_event)
+    # print(slack_event)
     if "challenge" in slack_event:
         return make_response(slack_event["challenge"], 200, {"content_type":
-                                                             "application/json"
-                                                            })
+                                                                 "application/json"
+                                                             })
 
     if secretKey.slack_verification != slack_event.get("token"):
         message = "Invalid Slack verification token: %s" % (slack_event["token"])
         make_response(message, 403, {"X-Slack-No-Retry": 1})
-    
+
     if "event" in slack_event:
         event_type = slack_event["event"]["type"]
         return _event_handler(event_type, slack_event)
@@ -169,10 +160,11 @@ def hears():
     return make_response("[NO EVENT IN SLACK REQUEST] These are not the droids\
                          you're looking for.", 404, {"X-Slack-No-Retry": 1})
 
+
 @app.route("/", methods=["GET"])
 def index():
     return "<h1>Server is ready.</h1>"
 
+
 if __name__ == '__main__':
     app.run('localhost', port=8080, debug=True)
-
