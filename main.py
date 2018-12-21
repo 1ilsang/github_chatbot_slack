@@ -11,7 +11,7 @@ import secretKey
 
 app = Flask(__name__)
 
-sc = SlackClient(secretKey.slack_token)
+sc = SlackClienst(secretKey.slack_token)
 ERR_TEXT = "명령어가 잘못됐거나 없는 유저입니다. 도움말은 *help* 를 입력해 주세요."
 
 
