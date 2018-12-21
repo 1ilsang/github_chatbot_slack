@@ -1,7 +1,6 @@
 secretKey.py
 /venv
 .idea/
-requirements.txt
 __pycache__/
 */.DS_Store
 .DS_Store
