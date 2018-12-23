@@ -40,12 +40,12 @@ ngrok http 5000
 
 <br/>
 
-#### 6. boj, 문제분류, level
+#### 7. boj, 문제분류, level
 <img src="img/profile4.png" width="60%" />
 
 <br/>
 
-#### 6. 아이디, 문제분류, random
+#### 8. 아이디, 문제분류, random
 <img src="img/profile5.png" width="60%" />
 
 <br/>
