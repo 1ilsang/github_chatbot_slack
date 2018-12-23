@@ -45,7 +45,7 @@ ngrok http 5000
 
 <br/>
 
-#### 8. 아이디, 문제분류, random
+#### 8. boj, 문제분류, random
 <img src="img/profile5.png" width="60%" />
 
 <br/>
