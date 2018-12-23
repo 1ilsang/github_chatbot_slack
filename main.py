@@ -2,8 +2,10 @@
 import json
 import os
 import re
-import urllib.request
+import urllib
+import random
 
+from urllib import parse
 from bs4 import BeautifulSoup
 from slackclient import SlackClient
 from flask import Flask, request, make_response, render_template
@@ -13,6 +15,12 @@ app = Flask(__name__)
 
 sc = SlackClient(secretKey.slack_token)
 ERR_TEXT = "명령어가 잘못됐거나 없는 유저입니다. 도움말은 *help* 를 입력해 주세요."
+
+# define header for urllib request
+user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) ' \
+             'Chrome/58.0.3029.110 Safari/537.36'
+hds = {'User-Agent': user_agent}
+hds_json = {'User-Agent': user_agent, 'Content-Type': 'Application/json'}
 
 
 # Help desk
@@ -27,9 +35,13 @@ def _help_desk():
     keywords.append("\t2. *{아이디}*, *{행동1}* : 각 { } 안에 명령어를 넣어주세요.")
     keywords.append("\t\t\t{아이디}, 0 : 해당 아이디의 정보를 출력합니다.")
     keywords.append("\t\t\t{아이디}, 1 : 해당 아이디의 반 년간 푸쉬량을 그래프로 보여줍니다.")
-    # keywords.append("\t\t\t{아이디}, 2 : 해당 아이디의 친구들?.")
     keywords.append("\t\t\t{아이디}, yyyy-mm-dd : yyyy-mm-dd 일에 푸쉬한 횟수를 출력합니다.")
     keywords.append('\n')
+    keywords.append("\t3. *boj, {문제분류}, {난이도}* : 백준에서 문제분류에 해당하는 난이도를 가져옵니다.")
+    keywords.append("\t\t\t난이도 : 0 - easy, 1 - middle, 2 - hard, *random* - 무작위")
+    keywords.append("\t\t\t문제분류 : dp, bfs, dfs, brute, 다익스트라, 분할정복, graph-basic, graph,")
+    keywords.append("\t\t\t\t\t구현, 문자열, 수학, 순열, 조합, 정렬, 탐색, 자료구조, 백트래킹, 스택, 큐, 덱, 해싱")
+    keywords.append("\t\t\t_e.x) boj, bfs, 0 : bfs 쉬운 문제들을 가져옵니다._")
     keywords.append('\n')
     keywords.append("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
 
@@ -66,7 +78,6 @@ def _get_user_profile(userId):
     url = "https://github.com/" + userId
 
     soup = BeautifulSoup(urllib.request.urlopen(url).read(), "html.parser")
-
     keywords = []
 
     data = {}
@@ -201,6 +212,78 @@ def _get_dd_contribution(userId, dd):
     return u'\n'.join(keywords)
 
 
+# BOJ 문제 크롤링
+def _get_boj(tag, level):
+    def getRatio(e):
+        return float(e[5])
+
+    if tag == 'dp':
+        tag = '다이나믹 프로그래밍'
+    elif tag == 'graph-basic':
+        tag = '그래프 이론'
+    elif tag == 'graph':
+        tag = '그래프 알고리즘'
+    elif tag == '다익스트라':
+        tag = '다익스트라 알고리즘'
+    elif tag == '분할정복':
+        tag = '분할 정복'
+    elif tag == 'brute':
+        tag = '브루트 포스'
+    elif tag == '문자열':
+        tag = '문자열 처리'
+
+    url = "https://www.acmicpc.net/problem/tag/" + parse.quote(tag)
+    pUrl = "https://www.acmicpc.net"
+    keywords = []
+
+    try:
+        req = urllib.request.Request(url, headers=hds)
+        soup = BeautifulSoup(urllib.request.urlopen(req).read(), "html.parser")
+
+        problem_list = soup.find_all('tr')[1:]
+        pp_list = []
+        pp = []
+
+        for e in problem_list:
+            pp_list.append(e.find_all('td'))
+
+        for e in pp_list:
+            tmp = []
+            for i in range(len(e)):
+                if i == 1:
+                    tmp.append(e[i])
+                elif i == 5:
+                    tmp.append(e[i].get_text()[0:5])
+                else:
+                    tmp.append(e[i].get_text())
+            pp.append(tmp)
+        pp = sorted(pp, key=getRatio, reverse=True)
+
+        if level == 'random':
+            rn = random.randint(0, len(pp) - 1)
+            keywords.append(pp[rn][0] + "번 *[" + pp[rn][1].get_text() + "]* \t\t정답 비율: " + pp[rn][5])
+            keywords.append(pUrl + pp[rn][1].find('a')['href'])
+        else:
+            for e in pp:
+                if level == '0' and float(e[5]) >= 60:
+                    keywords.append(e[0] + "번 *[" + e[1].get_text() + "]* \t\t정답 비율: " + e[5])
+                    keywords.append(pUrl + e[1].find('a')['href'])
+
+                elif level == '1' and 30 < float(e[5]) < 60:
+                    keywords.append(e[0] + "번 *[" + e[1].get_text() + "]* 정답 비율: " + e[5])
+                    keywords.append(pUrl + e[1].find('a')['href'])
+                elif level == '2' and -1 < float(e[5]) < 30:
+                    keywords.append(e[0] + "번 *[" + e[1].get_text() + "]* 정답 비율: " + e[5])
+                    keywords.append(pUrl + e[1].find('a')['href'])
+                if len(keywords) > 10:
+                    break
+
+    except:
+        keywords.append("찾을 수 없습니다. 인자를 확인해 주세요.")
+
+    return u'\n'.join(keywords)
+
+
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
     if event_type == "app_mention":
@@ -212,14 +295,15 @@ def _event_handler(event_type, slack_event):
             if len(text) > 1:
                 match_text = compile_text.findall(text[1])
 
-            keywords = ERR_TEXT
-
             STATUS_CODE = 100
             if text[0] == 'music':
                 keywords = _crawl_naver_keywords(text)
 
             elif text[0] == 'help':
                 keywords = _help_desk()
+
+            elif text[0] == 'boj':
+                keywords = _get_boj(text[1], text[2])
 
             elif text[1] == '0':
                 keywords = _get_user_profile(text[0])
