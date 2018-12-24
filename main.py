@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
-import os
 import re
 import urllib
 import random
 
-from urllib import parse
 from bs4 import BeautifulSoup
 from slackclient import SlackClient
 from flask import Flask, request, make_response, render_template
@@ -232,7 +230,7 @@ def _get_boj(tag, level):
     elif tag == '문자열':
         tag = '문자열 처리'
 
-    url = "https://www.acmicpc.net/problem/tag/" + parse.quote(tag)
+    url = "https://www.acmicpc.net/problem/tag/" + urllib.parse.quote(tag)
     pUrl = "https://www.acmicpc.net"
     keywords = []
 
